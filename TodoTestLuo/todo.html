@@ -660,6 +660,128 @@
       transform: scale(0.9);
     }
 
+    /* Calendar */
+    .calendar {
+      margin-bottom: 20px;
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .calendar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .calendar-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .calendar-nav {
+      display: flex;
+      gap: 8px;
+    }
+
+    .calendar-nav-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      background: var(--primary-light);
+      color: var(--primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .calendar-nav-btn:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .calendar-nav-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .calendar-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .calendar-weekday {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 4px 0;
+    }
+
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .calendar-day {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 13px;
+      color: var(--text-primary);
+      position: relative;
+    }
+
+    .calendar-day:hover {
+      background: var(--primary-light);
+    }
+
+    .calendar-day.other-month {
+      color: var(--text-muted);
+    }
+
+    .calendar-day.today {
+      background: var(--primary);
+      color: white;
+      font-weight: 700;
+    }
+
+    .calendar-day.today:hover {
+      background: var(--primary-hover);
+    }
+
+    .calendar-day.has-tasks::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      position: absolute;
+      bottom: 4px;
+      background: var(--priority-high);
+    }
+
+    .calendar-day.has-tasks.medium::after {
+      background: var(--priority-medium);
+    }
+
+    .calendar-day.has-tasks.low::after {
+      background: var(--priority-low);
+    }
+
     /* Task list */
     .task-list {
       display: flex;
@@ -986,6 +1108,35 @@
       </div>
     </div>
 
+    <!-- Calendar -->
+    <div class="calendar" id="calendar">
+      <div class="calendar-header">
+        <span class="calendar-title" id="calendar-title"></span>
+        <div class="calendar-nav">
+          <button class="calendar-nav-btn" id="calendar-prev" title="上月">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <button class="calendar-nav-btn" id="calendar-next" title="下月">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="calendar-weekdays">
+        <div class="calendar-weekday">日</div>
+        <div class="calendar-weekday">一</div>
+        <div class="calendar-weekday">二</div>
+        <div class="calendar-weekday">三</div>
+        <div class="calendar-weekday">四</div>
+        <div class="calendar-weekday">五</div>
+        <div class="calendar-weekday">六</div>
+      </div>
+      <div class="calendar-days" id="calendar-days"></div>
+    </div>
+
     <!-- Task list -->
     <div class="task-list" id="task-list">
       <!-- Tasks will be rendered here -->
@@ -1049,6 +1200,10 @@
     // Edit state
     let editingTaskId = null;
     let editingTaskCallback = null;
+
+    // Calendar state
+    let currentCalendarDate = new Date();
+    let selectedCalendarDate = null;
 
     // Load tasks from localStorage
     function loadTasks() {
@@ -1243,6 +1398,7 @@
 
       // Re-render
       renderTasks();
+      renderCalendar();
 
       // Add animation to new task
       const newTaskEl = taskList.querySelector(`[data-id="${newTask.id}"]`);
@@ -1268,6 +1424,7 @@
       }
 
       updateStats(tasks, true);
+      renderCalendar();
     }
 
     // Edit functions
@@ -1315,6 +1472,8 @@
           if (task) {
             task.text = newText;
             saveTasks(tasks);
+            renderTasks();
+            renderCalendar();
           }
         }
         renderTasks();
@@ -1353,6 +1512,7 @@
         const tasks = loadTasks().filter(t => t.id !== id);
         saveTasks(tasks);
         renderTasks();
+        renderCalendar();
       }, 250);
     }
 
@@ -1361,6 +1521,7 @@
       if (confirm('确定要清空所有任务吗？此操作不可撤销。')) {
         saveTasks([]);
         renderTasks();
+        renderCalendar();
       }
     }
 
@@ -1370,6 +1531,7 @@
         const tasks = loadTasks().filter(t => !t.completed);
         saveTasks(tasks);
         renderTasks();
+        renderCalendar();
       }
     }
 
@@ -1495,8 +1657,110 @@
     const clearCompletedBtn = document.getElementById('clear-completed-btn');
     clearCompletedBtn.addEventListener('click', clearCompletedTasks);
 
+    const calendarTitle = document.getElementById('calendar-title');
+    const calendarDays = document.getElementById('calendar-days');
+    const calendarPrev = document.getElementById('calendar-prev');
+    const calendarNext = document.getElementById('calendar-next');
+
+    function renderCalendar() {
+      const year = currentCalendarDate.getFullYear();
+      const month = currentCalendarDate.getMonth();
+
+      calendarTitle.textContent = `${year}年 ${month + 1}月`;
+
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const startDay = firstDay.getDay();
+      const daysInMonth = lastDay.getDate();
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const tasks = loadTasks();
+      const tasksByDate = {};
+      tasks.forEach(task => {
+        if (task.deadline) {
+          const d = new Date(task.deadline);
+          const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+          if (!tasksByDate[dateKey] || getPriorityOrder(task.priority) < getPriorityOrder(tasksByDate[dateKey])) {
+            tasksByDate[dateKey] = task.priority;
+          }
+        }
+      });
+
+      function getPriorityOrder(priority) {
+        return { high: 0, medium: 1, low: 2 }[priority] || 1;
+      }
+
+      let html = '';
+
+      for (let i = 0; i < startDay; i++) {
+        const prevDate = new Date(year, month, -startDay + i + 1);
+        html += `<div class="calendar-day other-month">${prevDate.getDate()}</div>`;
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const isToday = date.getTime() === today.getTime();
+        const dateKey = `${year}-${month}-${day}`;
+        const hasTask = tasksByDate[dateKey];
+        const priorityClass = hasTask ? ` has-tasks ${hasTask}` : '';
+
+        let classes = 'calendar-day';
+        if (isToday) classes += ' today';
+        if (priorityClass) classes += priorityClass;
+
+        html += `<div class="${classes}" data-date="${year}-${month}-${day}">${day}</div>`;
+      }
+
+      const totalCells = startDay + daysInMonth;
+      const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+      for (let i = 1; i <= remaining; i++) {
+        html += `<div class="calendar-day other-month">${i}</div>`;
+      }
+
+      calendarDays.innerHTML = html;
+    }
+
+    calendarPrev.addEventListener('click', () => {
+      currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+      renderCalendar();
+    });
+
+    calendarNext.addEventListener('click', () => {
+      currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+      renderCalendar();
+    });
+
+    calendarDays.addEventListener('dblclick', (e) => {
+      const dayEl = e.target.closest('.calendar-day');
+      if (!dayEl || dayEl.classList.contains('other-month')) return;
+
+      const dateStr = dayEl.dataset.date;
+      if (!dateStr) return;
+
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const clickedDate = new Date(y, m, d, 23, 59, 59);
+
+      selectedCalendarDate = clickedDate.getTime();
+      pendingDeadline = selectedCalendarDate;
+      isDeadlineActive = true;
+
+      timedBtn.classList.add('active');
+      timedBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        ${formatDeadline(pendingDeadline)}
+      `;
+
+      taskInput.focus();
+    });
+
     // Initial render
     renderTasks();
+    renderCalendar();
   </script>
 </body>
 </html>
