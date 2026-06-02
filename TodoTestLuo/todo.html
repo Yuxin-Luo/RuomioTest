@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Breeze - 待办事项</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-gradient-start: #e0e7ff;
+      --bg-gradient-end: #f3e8ff;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --card-border: rgba(255, 255, 255, 0.6);
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --primary-light: #dbeafe;
+      --text-primary: #1e3a5f;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --shadow-color: rgba(59, 130, 246, 0.15);
+      --priority-high: #ef4444;
+      --priority-medium: #f59e0b;
+      --priority-low: #10b981;
+    }
+
+    body {
+      font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+      background-attachment: fixed;
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 60px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Floating clouds background */
+    .clouds {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .cloud {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 50%;
+      filter: blur(40px);
+      animation: float 20s ease-in-out infinite;
+    }
+
+    .cloud:nth-child(1) {
+      width: 300px;
+      height: 150px;
+      top: 10%;
+      left: -50px;
+      animation-delay: 0s;
+    }
+
+    .cloud:nth-child(2) {
+      width: 400px;
+      height: 200px;
+      top: 50%;
+      right: -100px;
+      animation-delay: -7s;
+    }
+
+    .cloud:nth-child(3) {
+      width: 250px;
+      height: 120px;
+      bottom: 15%;
+      left: 10%;
+      animation-delay: -14s;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0) translateX(0); }
+      25% { transform: translateY(-20px) translateX(10px); }
+      50% { transform: translateY(-10px) translateX(-10px); }
+      75% { transform: translateY(-25px) translateX(5px); }
+    }
+
+    /* Main card */
+    .app-container {
+      width: 100%;
+      max-width: 560px;
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      border: 1px solid var(--card-border);
+      box-shadow:
+        0 4px 24px var(--shadow-color),
+        0 1px 3px rgba(0, 0, 0, 0.05);
+      padding: 32px;
+      position: relative;
+      z-index: 1;
+      animation: slideUp 0.5s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .header h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .header h1 .star {
+      color: var(--primary);
+      font-size: 28px;
+    }
+
+    .header p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+    }
+
+    /* Stats */
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: transform 0.2s ease;
+    }
+
+    .stat-badge.pending {
+      background: var(--primary);
+      color: white;
+    }
+
+    .stat-badge.completed {
+      background: var(--success);
+      color: white;
+    }
+
+    .stat-badge.pulse {
+      animation: pulse 0.3s ease;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+
+    .clear-btn {
+      display: none;
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      font-family: inherit;
+      font-weight: 600;
+      border: 2px dashed var(--text-muted);
+      border-radius: 10px;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .clear-btn:hover {
+      border-color: var(--danger);
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.05);
+    }
+
+    .clear-btn.visible {
+      display: block;
+    }
+
+    /* Input area */
+    .input-area {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .input-area input {
+      flex: 1;
+      height: 40px;
+      min-width: 120px;
+      padding: 0 14px;
+      font-size: 14px;
+      font-family: inherit;
+      border: 2px solid transparent;
+      border-radius: 10px;
+      background: white;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .input-area input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .input-area input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .input-area button {
+      height: 40px;
+      padding: 0 18px;
+      font-size: 14px;
+      font-family: inherit;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .input-area button:hover {
+      background: var(--primary-hover);
+    }
+
+    .input-area button:active {
+      transform: scale(0.97);
+    }
+
+    .input-area button svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Priority selector - inline */
+    .priority-selector {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .priority-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-right: 4px;
+    }
+
+    .priority-btn {
+      width: 36px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .priority-btn.high {
+      background: #fef2f2;
+      color: var(--priority-high);
+    }
+
+    .priority-btn.medium {
+      background: #fffbeb;
+      color: var(--priority-medium);
+    }
+
+    .priority-btn.low {
+      background: #ecfdf5;
+      color: var(--priority-low);
+    }
+
+    .priority-btn.active.high {
+      background: var(--priority-high);
+      color: white;
+    }
+
+    .priority-btn.active.medium {
+      background: var(--priority-medium);
+      color: white;
+    }
+
+    .priority-btn.active.low {
+      background: var(--priority-low);
+      color: white;
+    }
+
+    /* Priority popup */
+    .priority-popup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.3);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .priority-popup.show {
+      display: flex;
+    }
+
+    .priority-popup-content {
+      background: white;
+      border-radius: 16px;
+      padding: 24px 32px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      text-align: center;
+    }
+
+    .priority-popup-title {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    .priority-popup-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .priority-popup-btn {
+      width: 80px;
+      height: 44px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .priority-popup-btn.high {
+      background: #fef2f2;
+      color: var(--priority-high);
+    }
+
+    .priority-popup-btn.medium {
+      background: #fffbeb;
+      color: var(--priority-medium);
+    }
+
+    .priority-popup-btn.low {
+      background: #ecfdf5;
+      color: var(--priority-low);
+    }
+
+    .priority-popup-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .priority-popup-btn.selected.high {
+      background: var(--priority-high);
+      color: white;
+    }
+
+    .priority-popup-btn.selected.medium {
+      background: var(--priority-medium);
+      color: white;
+    }
+
+    .priority-popup-btn.selected.low {
+      background: var(--priority-low);
+      color: white;
+    }
+
+    /* Edit input */
+    .edit-input {
+      flex: 1;
+      height: 32px;
+      padding: 0 10px;
+      font-size: 15px;
+      font-family: inherit;
+      border: 2px solid var(--primary);
+      border-radius: 6px;
+      outline: none;
+      background: white;
+    }
+
+    /* Edit button */
+    .edit-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+      opacity: 0.5;
+    }
+
+    .task-item:hover .edit-btn {
+      opacity: 1;
+    }
+
+    .edit-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--text-secondary);
+      transition: stroke 0.2s ease;
+    }
+
+    .edit-btn:hover {
+      background: var(--primary);
+    }
+
+    .edit-btn:hover svg {
+      stroke: white;
+    }
+
+    .edit-btn:active {
+      transform: scale(0.9);
+    }
+
+    /* Delete button */
+    .delete-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+      opacity: 0.5;
+    }
+
+    .task-item:hover .delete-btn {
+      opacity: 1;
+    }
+
+    .delete-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--text-secondary);
+      transition: stroke 0.2s ease;
+    }
+
+    .delete-btn:hover {
+      background: var(--danger);
+    }
+
+    .delete-btn:hover svg {
+      stroke: white;
+    }
+
+    .delete-btn:active {
+      transform: scale(0.9);
+    }
+
+    /* Task list */
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      background: white;
+      border-radius: 10px;
+      border-left: 4px solid var(--priority-medium);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      transition: box-shadow 0.2s ease, transform 0.2s ease, opacity 0.25s ease;
+      animation: taskEnter 0.3s ease-out;
+    }
+
+    .task-item.high { border-left-color: var(--priority-high); }
+    .task-item.medium { border-left-color: var(--priority-medium); }
+    .task-item.low { border-left-color: var(--priority-low); }
+
+    @keyframes taskEnter {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .task-item:hover {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    }
+
+    .task-item.completed {
+      opacity: 0.65;
+    }
+
+    .task-item.completed .task-text {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    .task-item.removing {
+      animation: taskRemove 0.25s ease-in forwards;
+    }
+
+    @keyframes taskRemove {
+      to {
+        opacity: 0;
+        transform: translateX(-30px);
+      }
+    }
+
+    /* Custom checkbox */
+    .checkbox {
+      position: relative;
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .checkbox input {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+      z-index: 1;
+    }
+
+    .checkbox-visual {
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--text-muted);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .checkbox input:checked + .checkbox-visual {
+      background: var(--success);
+      border-color: var(--success);
+      transform: scale(1.05);
+    }
+
+    .checkbox-visual svg {
+      width: 12px;
+      height: 12px;
+      stroke: white;
+      stroke-width: 3;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: all 0.2s ease;
+    }
+
+    .checkbox input:checked + .checkbox-visual svg {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .task-text {
+      flex: 1;
+      font-size: 14px;
+      line-height: 1.4;
+      color: var(--text-primary);
+      word-break: break-word;
+    }
+
+    .task-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state .cloud-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .empty-state p {
+      font-size: 15px;
+    }
+
+    .empty-state .tip {
+      margin-top: 10px;
+      font-size: 13px;
+      opacity: 0.7;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      body {
+        padding: 20px 16px 40px;
+      }
+
+      .app-container {
+        padding: 24px 20px;
+        border-radius: 16px;
+      }
+
+      .header h1 {
+        font-size: 26px;
+      }
+
+      .stats {
+        gap: 12px;
+      }
+
+      .stat-badge {
+        padding: 6px 12px;
+        font-size: 13px;
+      }
+
+      .input-area {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .input-area input {
+        min-width: unset;
+        height: 38px;
+        border-radius: 10px;
+      }
+
+      .input-area button {
+        height: 38px;
+        border-radius: 10px;
+      }
+
+      .input-area button span {
+        display: none;
+      }
+
+      .priority-selector {
+        order: -1;
+        justify-content: flex-start;
+      }
+
+      .priority-btn {
+        width: 36px;
+        height: 26px;
+        font-size: 10px;
+      }
+
+      .task-item {
+        padding: 12px 10px;
+      }
+
+      .task-time {
+        display: none;
+      }
+
+      .edit-btn {
+        opacity: 1;
+        width: 32px;
+        height: 32px;
+      }
+
+      .edit-btn svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .delete-btn {
+        opacity: 1;
+        width: 32px;
+        height: 32px;
+      }
+
+      .delete-btn svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Background clouds -->
+  <div class="clouds">
+    <div class="cloud"></div>
+    <div class="cloud"></div>
+    <div class="cloud"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <h1>🌸 我的待办清单</h1>
+      <p>记录每一天的小目标</p>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-badge pending">
+        <span id="pending-count">0</span> 待完成
+      </div>
+      <div class="stat-badge completed">
+        <span id="completed-count">0</span> 已完成
+      </div>
+    </div>
+
+    <button id="clear-all-btn" class="clear-btn" title="清空所有任务">🗑 全部清空</button>
+
+    <!-- Input area -->
+    <div class="input-area">
+      <input type="text" id="task-input" placeholder="今天要做什么？" maxlength="200" autocomplete="off">
+      <div class="priority-selector" id="priority-selector">
+        <button type="button" class="priority-btn high active" data-priority="high" title="高优先级">高</button>
+        <button type="button" class="priority-btn medium" data-priority="medium" title="中优先级">中</button>
+        <button type="button" class="priority-btn low" data-priority="low" title="低优先级">低</button>
+      </div>
+      <button id="add-btn" title="添加任务">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>添加</span>
+      </button>
+    </div>
+
+    <!-- Task list -->
+    <div class="task-list" id="task-list">
+      <!-- Tasks will be rendered here -->
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      Made with ✦ Breeze
+    </div>
+  </div>
+
+  <!-- Priority popup -->
+  <div class="priority-popup" id="priority-popup">
+    <div class="priority-popup-content">
+      <div class="priority-popup-title">选择优先级</div>
+      <div class="priority-popup-buttons" id="priority-popup-buttons">
+        <button type="button" class="priority-popup-btn high" data-priority="high" title="设置为高优先级">高</button>
+        <button type="button" class="priority-popup-btn medium" data-priority="medium" title="设置为中优先级">中</button>
+        <button type="button" class="priority-popup-btn low" data-priority="low" title="设置为低优先级">低</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Storage key
+    const STORAGE_KEY = 'breeze-todos';
+
+    // DOM elements
+    const taskInput = document.getElementById('task-input');
+    const addBtn = document.getElementById('add-btn');
+    const taskList = document.getElementById('task-list');
+    const pendingCount = document.getElementById('pending-count');
+    const completedCount = document.getElementById('completed-count');
+    const pendingBadge = document.querySelector('.stat-badge.pending');
+    const completedBadge = document.querySelector('.stat-badge.completed');
+    const clearBtn = document.getElementById('clear-all-btn');
+    const prioritySelector = document.getElementById('priority-selector');
+    const priorityPopup = document.getElementById('priority-popup');
+    const priorityPopupButtons = document.getElementById('priority-popup-buttons');
+
+    // Current selected priority
+    let currentPriority = 'medium';
+
+    // Edit state
+    let editingTaskId = null;
+    let editingTaskCallback = null;
+
+    // Load tasks from localStorage
+    function loadTasks() {
+      try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+      } catch (e) {
+        console.warn('Failed to load tasks:', e);
+        return [];
+      }
+    }
+
+    // Save tasks to localStorage
+    function saveTasks(tasks) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      } catch (e) {
+        console.warn('Failed to save tasks:', e);
+      }
+    }
+
+    // Create a new task object
+    function createTask(text, priority = 'medium') {
+      return {
+        id: Date.now().toString(),
+        text: text.trim(),
+        completed: false,
+        priority: priority,
+        createdAt: Date.now()
+      };
+    }
+
+    // Render a single task item
+    function renderTask(task) {
+      const div = document.createElement('div');
+      div.className = `task-item${task.completed ? ' completed' : ''} ${task.priority || 'medium'}`;
+      div.dataset.id = task.id;
+
+      const time = new Date(task.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+      div.innerHTML = `
+        <label class="checkbox" title="标记完成">
+          <input type="checkbox" ${task.completed ? 'checked' : ''} aria-label="标记完成">
+          <div class="checkbox-visual">
+            <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+        </label>
+        <span class="task-text" ondblclick="showTextEdit('${task.id}')" title="双击编辑内容">${escapeHtml(task.text)}</span>
+        <button class="edit-btn" onclick="startEdit('${task.id}')" title="修改优先级" aria-label="修改优先级">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+        </button>
+        <span class="task-time">${time}</span>
+        <button class="delete-btn" title="删除任务" aria-label="删除任务">
+          <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      `;
+
+      return div;
+    }
+
+    // Escape HTML to prevent XSS
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Render all tasks
+    function renderTasks() {
+      const tasks = loadTasks();
+      taskList.innerHTML = '';
+
+      if (tasks.length === 0) {
+        taskList.innerHTML = `
+          <div class="empty-state">
+            <div class="cloud-icon">☁️</div>
+            <p>暂无任务</p>
+            <p class="tip">添加一个新任务开始今天的计划吧</p>
+          </div>
+        `;
+      } else {
+        // Sort: incomplete first, then by priority, then by creation time (newest first)
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        const sorted = [...tasks].sort((a, b) => {
+          if (a.completed !== b.completed) {
+            return a.completed ? 1 : -1;
+          }
+          const priDiff = (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1);
+          if (priDiff !== 0) return priDiff;
+          return b.createdAt - a.createdAt;
+        });
+
+        sorted.forEach(task => {
+          taskList.appendChild(renderTask(task));
+        });
+      }
+
+      updateStats(tasks);
+    }
+
+    // Update statistics
+    function updateStats(tasks, animate = false) {
+      const pending = tasks.filter(t => !t.completed).length;
+      const completed = tasks.filter(t => t.completed).length;
+
+      pendingCount.textContent = pending;
+      completedCount.textContent = completed;
+
+      if (tasks.length > 0) {
+        clearBtn.classList.add('visible');
+      } else {
+        clearBtn.classList.remove('visible');
+      }
+
+      if (animate) {
+        pendingBadge.classList.add('pulse');
+        completedBadge.classList.add('pulse');
+        setTimeout(() => {
+          pendingBadge.classList.remove('pulse');
+          completedBadge.classList.remove('pulse');
+        }, 300);
+      }
+    }
+
+    // Add a new task
+    function addTask() {
+      const text = taskInput.value.trim();
+      if (!text) return;
+
+      const tasks = loadTasks();
+      const newTask = createTask(text, currentPriority);
+      tasks.unshift(newTask);
+      saveTasks(tasks);
+
+      // Clear input
+      taskInput.value = '';
+      taskInput.focus();
+
+      // Re-render
+      renderTasks();
+
+      // Add animation to new task
+      const newTaskEl = taskList.querySelector(`[data-id="${newTask.id}"]`);
+      if (newTaskEl) {
+        newTaskEl.style.animation = 'none';
+        newTaskEl.offsetHeight; // Trigger reflow
+        newTaskEl.style.animation = 'taskEnter 0.3s ease-out';
+      }
+    }
+
+    // Toggle task completion
+    function toggleTask(id) {
+      const tasks = loadTasks();
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+
+      task.completed = !task.completed;
+      saveTasks(tasks);
+
+      const taskEl = taskList.querySelector(`[data-id="${id}"]`);
+      if (taskEl) {
+        taskEl.classList.toggle('completed', task.completed);
+      }
+
+      updateStats(tasks, true);
+    }
+
+    // Edit functions
+    function startEdit(id, callback) {
+      editingTaskId = id;
+      editingTaskCallback = callback;
+
+      const task = loadTasks().find(t => t.id === id);
+      if (!task) return;
+
+      const popup = priorityPopup;
+      const buttons = priorityPopupButtons.querySelectorAll('.priority-popup-btn');
+
+      buttons.forEach(btn => {
+        btn.classList.remove('selected');
+        if (btn.dataset.priority === task.priority) {
+          btn.classList.add('selected');
+        }
+      });
+
+      popup.classList.add('show');
+    }
+
+    function showTextEdit(id) {
+      const taskEl = taskList.querySelector(`[data-id="${id}"]`);
+      if (!taskEl) return;
+
+      const textSpan = taskEl.querySelector('.task-text');
+      const currentText = textSpan.textContent;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'edit-input';
+      input.value = currentText;
+
+      textSpan.replaceWith(input);
+      input.focus();
+      input.select();
+
+      function saveEdit() {
+        const newText = input.value.trim();
+        if (newText && newText !== currentText) {
+          const tasks = loadTasks();
+          const task = tasks.find(t => t.id === id);
+          if (task) {
+            task.text = newText;
+            saveTasks(tasks);
+          }
+        }
+        renderTasks();
+      }
+
+      function cancelEdit() {
+        renderTasks();
+      }
+
+      input.addEventListener('blur', saveEdit);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveEdit();
+        } else if (e.key === 'Escape') {
+          cancelEdit();
+        }
+      });
+    }
+
+    function closePriorityPopup() {
+      priorityPopup.classList.remove('show');
+      editingTaskId = null;
+      editingTaskCallback = null;
+    }
+
+    // Delete a task with animation
+    function deleteTask(id) {
+      const taskEl = taskList.querySelector(`[data-id="${id}"]`);
+      if (!taskEl) return;
+
+      // Animate out
+      taskEl.classList.add('removing');
+
+      setTimeout(() => {
+        const tasks = loadTasks().filter(t => t.id !== id);
+        saveTasks(tasks);
+        renderTasks();
+      }, 250);
+    }
+
+    // Clear all tasks with confirmation
+    function clearAllTasks() {
+      if (confirm('确定要清空所有任务吗？此操作不可撤销。')) {
+        saveTasks([]);
+        renderTasks();
+      }
+    }
+
+    // Event: Add button click
+    addBtn.addEventListener('click', addTask);
+
+    // Event: Enter key in input
+    taskInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        addTask();
+      }
+    });
+
+    // Event: Priority selector
+    prioritySelector.addEventListener('click', (e) => {
+      const btn = e.target.closest('.priority-btn');
+      if (!btn) return;
+
+      currentPriority = btn.dataset.priority;
+      prioritySelector.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+
+    // Event: Task list delegation
+    taskList.addEventListener('click', (e) => {
+      // Checkbox toggle
+      const checkbox = e.target.closest('.checkbox input');
+      if (checkbox) {
+        const taskItem = checkbox.closest('.task-item');
+        const id = taskItem.dataset.id;
+        toggleTask(id);
+        return;
+      }
+
+      // Delete button
+      const deleteBtn = e.target.closest('.delete-btn');
+      if (deleteBtn) {
+        const taskItem = deleteBtn.closest('.task-item');
+        const id = taskItem.dataset.id;
+        deleteTask(id);
+        return;
+      }
+    });
+
+    // Event: Priority popup
+    priorityPopup.addEventListener('click', (e) => {
+      if (e.target === priorityPopup) {
+        closePriorityPopup();
+      }
+    });
+
+    priorityPopupButtons.addEventListener('click', (e) => {
+      const btn = e.target.closest('.priority-popup-btn');
+      if (!btn) return;
+
+      if (editingTaskId) {
+        const tasks = loadTasks();
+        const task = tasks.find(t => t.id === editingTaskId);
+        if (task) {
+          task.priority = btn.dataset.priority;
+          saveTasks(tasks);
+          renderTasks();
+        }
+        closePriorityPopup();
+      }
+    });
+
+    // Event: Clear all
+    clearBtn.addEventListener('click', clearAllTasks);
+
+    // Initial render
+    renderTasks();
+  </script>
+</body>
+</html>
