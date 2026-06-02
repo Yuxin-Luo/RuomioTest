@@ -218,6 +218,22 @@
       display: block;
     }
 
+    .clear-buttons {
+      display: none;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .clear-buttons.visible {
+      display: flex;
+    }
+
+    .clear-buttons .clear-btn {
+      display: block;
+      flex: 1;
+      margin-bottom: 0;
+    }
+
     /* Input area */
     .input-area {
       display: flex;
@@ -936,7 +952,10 @@
       </div>
     </div>
 
-    <button id="clear-all-btn" class="clear-btn" title="清空所有任务">🗑 全部清空</button>
+    <div class="clear-buttons" id="clear-buttons">
+      <button id="clear-completed-btn" class="clear-btn" title="清空已完成任务">🗑 清空已完成</button>
+      <button id="clear-all-btn" class="clear-btn" title="清空所有任务">🗑 全部清空</button>
+    </div>
 
     <!-- Input area -->
     <div class="input-area">
@@ -1015,6 +1034,7 @@
     const pendingBadge = document.querySelector('.stat-badge.pending');
     const completedBadge = document.querySelector('.stat-badge.completed');
     const clearBtn = document.getElementById('clear-all-btn');
+    const clearButtons = document.getElementById('clear-buttons');
     const prioritySelector = document.getElementById('priority-selector');
     const priorityPopup = document.getElementById('priority-popup');
     const priorityPopupButtons = document.getElementById('priority-popup-buttons');
@@ -1177,9 +1197,9 @@
       completedCount.textContent = completed;
 
       if (tasks.length > 0) {
-        clearBtn.classList.add('visible');
+        clearButtons.classList.add('visible');
       } else {
-        clearBtn.classList.remove('visible');
+        clearButtons.classList.remove('visible');
       }
 
       if (animate) {
@@ -1344,6 +1364,15 @@
       }
     }
 
+    // Clear completed tasks with confirmation
+    function clearCompletedTasks() {
+      if (confirm('确定要清空所有已完成任务吗？此操作不可撤销。')) {
+        const tasks = loadTasks().filter(t => !t.completed);
+        saveTasks(tasks);
+        renderTasks();
+      }
+    }
+
     // Event: Add button click
     addBtn.addEventListener('click', addTask);
 
@@ -1462,6 +1491,9 @@
 
     // Event: Clear all
     clearBtn.addEventListener('click', clearAllTasks);
+
+    const clearCompletedBtn = document.getElementById('clear-completed-btn');
+    clearCompletedBtn.addEventListener('click', clearCompletedTasks);
 
     // Initial render
     renderTasks();
